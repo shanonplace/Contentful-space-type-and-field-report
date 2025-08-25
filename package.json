@@ -1,0 +1,17 @@
+{
+  "name": "content-type-validation-report",
+  "version": "1.0.0",
+  "description": "Script to generate a content model report with all validations",
+  "main": "contentful-content-types-script.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Shanon Place",
+  "license": "ISC",
+  "dependencies": {
+    "contentful-management": "^11.54.4",
+    "dotenv": "^17.2.1",
+    "minimist": "^1.2.8"
+  }
+}
