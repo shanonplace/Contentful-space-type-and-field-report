@@ -22,19 +22,18 @@ This script generates a comprehensive report of all content types in a Contentfu
 Run the script with Node.js:
 
 ```sh
-node contentful-content-types-script.js --format=table
+node contentful-content-types-script.js
 ```
 
 ### Options
 
-- `--format <type>`: Output format (`table`, `json`, `csv`, `markdown`). Default: `table`
 - `--output <file>`: Specify output filename (optional)
 - `--help, -h`: Show help message
 
 ### Example
 
 ```sh
-node contentful-content-types-script.js --format=json --output=types.json
+node contentful-content-types-script.js --output=types.json
 ```
 
 ## Output

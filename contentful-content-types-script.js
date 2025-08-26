@@ -9,7 +9,6 @@
  * Usage:
  *   node contentful-content-types-report.js
  *   node contentful-content-types-report.js --dry-run=false
- *   node contentful-content-types-report.js --format=json
  */
 
 import "dotenv/config";
@@ -22,14 +21,12 @@ import minimist from "minimist";
 // Parse command line arguments
 const args = minimist(process.argv.slice(2), {
   boolean: ["help"],
-  string: ["format", "output"],
+  string: ["output"],
   default: {
-    format: "table",
     output: null,
   },
   alias: {
     h: "help",
-    f: "format",
     o: "output",
   },
 });
@@ -68,7 +65,6 @@ Usage:
   node contentful-content-types-report.js [options]
 
 Options:
-  --format <type>   Output format: table, json, csv, markdown (default: table)
   --output <file>   Specify output filename (optional)
   --help, -h        Show this help message
 
@@ -80,8 +76,7 @@ Environment Variables (required):
 
 Examples:
   node contentful-content-types-report.js
-  node contentful-content-types-report.js --format=markdown
-  node contentful-content-types-report.js --format=json --output=my-content-types.json
+  node contentful-content-types-report.js --output=my-content-types.md
 `);
 }
 
@@ -464,127 +459,36 @@ function generateTableReport(contentTypes) {
   return lines.join("\n");
 }
 
-// Generate JSON format report
-function generateJsonReport(contentTypes) {
-  const report = {
-    metadata: {
-      generatedAt: new Date().toISOString(),
-      spaceId: config.spaceId,
-      environmentId: config.environmentId,
-      totalContentTypes: contentTypes.length,
-    },
-    contentTypes: contentTypes.map((contentType) => ({
-      id: contentType.sys.id,
-      name: contentType.name,
-      description: contentType.description,
-      displayField: contentType.displayField,
-      fieldsCount: contentType.fields?.length || 0,
-      createdAt: contentType.sys.createdAt,
-      updatedAt: contentType.sys.updatedAt,
-      fields:
-        contentType.fields?.map((field) => ({
-          id: field.id,
-          name: field.name,
-          type: field.type,
-          required: field.required,
-          localized: field.localized,
-          disabled: field.disabled,
-          omitted: field.omitted,
-          validations: field.validations,
-          defaultValue: field.defaultValue,
-          items: field.items,
-          linkType: field.linkType,
-          fieldTypeDescription: getFieldTypeDescription(field),
-        })) || [],
-    })),
-  };
-
-  return JSON.stringify(report, null, 2);
-}
-
-// Generate CSV format report (flattened field data)
-function generateCsvReport(contentTypes) {
-  const lines = [];
-
-  // Header - enhanced with more columns
-  lines.push(
-    "ContentType ID,ContentType Name,Field ID,Field Name,Field Type,Field Type Description,Required,Localized,Disabled,Omitted,Default Value,Validations"
-  );
-
-  contentTypes.forEach((contentType) => {
-    if (!contentType.fields || contentType.fields.length === 0) {
-      lines.push(
-        `${contentType.sys.id},"${contentType.name}",,,,,"No fields",,,,,"No fields"`
-      );
-    } else {
-      contentType.fields.forEach((field) => {
-        const validations = formatValidations(field.validations, field).replace(
-          /"/g,
-          '""'
-        );
-        const fieldType = field.type;
-        const fieldTypeDescription = getFieldTypeDescription(field);
-        const defaultValue = field.defaultValue
-          ? typeof field.defaultValue === "object"
-            ? JSON.stringify(field.defaultValue).replace(/"/g, '""')
-            : String(field.defaultValue).replace(/"/g, '""')
-          : "";
-
-        lines.push(
-          [
-            contentType.sys.id,
-            `"${contentType.name}"`,
-            field.id,
-            `"${field.name}"`,
-            fieldType,
-            `"${fieldTypeDescription}"`,
-            field.required ? "YES" : "NO",
-            field.localized ? "YES" : "NO",
-            field.disabled ? "YES" : "NO",
-            field.omitted ? "YES" : "NO",
-            `"${defaultValue}"`,
-            `"${validations}"`,
-          ].join(",")
-        );
-      });
-    }
-  });
-
-  return lines.join("\n");
-}
-
 // Generate Markdown format report
 function generateMarkdownReport(contentTypes) {
   const lines = [];
 
-  lines.push("# Contentful Content Types Report");
-  lines.push("");
-  lines.push(`**Generated:** ${new Date().toISOString()}`);
-  lines.push(`**Space ID:** ${config.spaceId}`);
-  lines.push(`**Environment:** ${config.environmentId}`);
-  lines.push(`**Total Content Types:** ${contentTypes.length}`);
-  lines.push("");
-  lines.push("## Table of Contents");
-  lines.push("");
+  const spaceId = config.spaceId;
+  const environment = config.environmentId;
 
-  // Generate TOC
+  const header = `# Contentful Content Types Report\n\n**Generated:** ${new Date().toLocaleDateString()}  \n**Space ID:** ${spaceId}  \n**Environment:** ${environment}  \n**Total Content Types:** ${
+    contentTypes.length
+  }\n\n`;
+
+  lines.push(header);
+
+  // Generate TOC with unique anchors
   contentTypes.forEach((contentType, index) => {
-    lines.push(
-      `${index + 1}. [${contentType.name}](#${contentType.name
-        .toLowerCase()
-        .replace(/\s+/g, "-")
-        .replace(/[^\w-]/g, "")})`
-    );
+    const anchor = `${contentType.name
+      .toLowerCase()
+      .replace(/\s+/g, "-")
+      .replace(/[^\w-]/g, "")}-${contentType.sys.id}`;
+    lines.push(`${index + 1}. [${contentType.name}](#${anchor})`);
   });
 
   lines.push("");
 
   // Generate detailed sections
   contentTypes.forEach((contentType) => {
-    const anchor = contentType.name
+    const anchor = `${contentType.name
       .toLowerCase()
       .replace(/\s+/g, "-")
-      .replace(/[^\w-]/g, "");
+      .replace(/[^\w-]/g, "")}-${contentType.sys.id}`;
     lines.push(`## ${contentType.name} {#${anchor}}`);
     lines.push("");
     lines.push(`- **ID:** \`${contentType.sys.id}\``);
@@ -610,6 +514,9 @@ function generateMarkdownReport(contentTypes) {
       lines.push("");
       lines.push("### Fields");
       lines.push("");
+
+      // Track unique links for this content type section
+      const seenLinks = new Set();
 
       contentType.fields.forEach((field) => {
         const fieldType = getFieldTypeDescription(field);
@@ -642,9 +549,26 @@ function generateMarkdownReport(contentTypes) {
           lines.push(`- **Default Value:** \`${defaultVal}\``);
         }
 
-        const validations = formatValidations(field.validations, field);
+        // De-duplicate inline links in validations
+        let validations = formatValidations(field.validations, field);
         if (validations !== "None") {
-          lines.push(`- **Validations:** ${validations}`);
+          // Find markdown links in validations and dedupe
+          const linkRegex = /\[([^\]]+)\]\(([^\)]+)\)/g;
+          let match;
+          let dedupedValidations = validations;
+          while ((match = linkRegex.exec(validations)) !== null) {
+            const linkKey = match[0];
+            if (seenLinks.has(linkKey)) {
+              // Remove duplicate link
+              dedupedValidations = dedupedValidations.replace(
+                linkKey,
+                match[1]
+              );
+            } else {
+              seenLinks.add(linkKey);
+            }
+          }
+          lines.push(`- **Validations:** ${dedupedValidations}`);
         }
 
         // Add array item details if applicable
@@ -654,11 +578,28 @@ function generateMarkdownReport(contentTypes) {
             lines.push(`- **Array Item Link Type:** ${field.items.linkType}`);
           }
           if (field.items.validations && field.items.validations.length > 0) {
-            const itemValidations = formatValidations(
+            let itemValidations = formatValidations(
               field.items.validations,
               field
             );
-            lines.push(`- **Array Item Validations:** ${itemValidations}`);
+            // Dedupe links in array item validations
+            const linkRegex = /\[([^\]]+)\]\(([^\)]+)\)/g;
+            let match;
+            let dedupedItemValidations = itemValidations;
+            while ((match = linkRegex.exec(itemValidations)) !== null) {
+              const linkKey = match[0];
+              if (seenLinks.has(linkKey)) {
+                dedupedItemValidations = dedupedItemValidations.replace(
+                  linkKey,
+                  match[1]
+                );
+              } else {
+                seenLinks.add(linkKey);
+              }
+            }
+            lines.push(
+              `- **Array Item Validations:** ${dedupedItemValidations}`
+            );
           }
         }
 
@@ -666,7 +607,9 @@ function generateMarkdownReport(contentTypes) {
       });
     }
 
-    lines.push("---");
+    // Add a section break and page break marker for PDF generation
+    lines.push("<!-- sectionbreak -->");
+    lines.push("<!-- pagebreak -->");
     lines.push("");
   });
 
@@ -771,7 +714,6 @@ async function main() {
 
   console.log(`📍 Space: ${config.spaceId}`);
   console.log(`🌍 Environment: ${config.environmentId}`);
-  console.log(`📊 Format: ${args.format}`);
   console.log("");
 
   try {
@@ -830,28 +772,10 @@ async function main() {
       );
     }
 
-    // Generate report based on format
+    // Always generate Markdown report
     let reportContent;
-    let fileExtension;
-
-    switch (args.format.toLowerCase()) {
-      case "json":
-        reportContent = generateJsonReport(contentTypes);
-        fileExtension = "json";
-        break;
-      case "csv":
-        reportContent = generateCsvReport(contentTypes);
-        fileExtension = "csv";
-        break;
-      case "markdown":
-      case "md":
-        reportContent = generateMarkdownReport(contentTypes);
-        fileExtension = "md";
-        break;
-      default:
-        reportContent = generateTableReport(contentTypes);
-        fileExtension = "txt";
-    }
+    let fileExtension = "md";
+    reportContent = generateMarkdownReport(contentTypes);
 
     // Determine output filename
     const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, "-");
