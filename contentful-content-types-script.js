@@ -384,81 +384,6 @@ function getFieldTypeDescription(field) {
   return baseType;
 }
 
-// Generate table format report
-function generateTableReport(contentTypes) {
-  const lines = [];
-
-  lines.push("# Contentful Content Types and Validations Report");
-  lines.push(`Generated on: ${new Date().toISOString()}`);
-  lines.push(`Space ID: ${config.spaceId}`);
-  lines.push(`Environment: ${config.environmentId}`);
-  lines.push(`Total Content Types: ${contentTypes.length}`);
-  lines.push("");
-
-  contentTypes.forEach((contentType, index) => {
-    lines.push(`## ${index + 1}. ${contentType.name} (${contentType.sys.id})`);
-
-    if (contentType.description) {
-      lines.push(`**Description:** ${contentType.description}`);
-    }
-
-    lines.push(`**Display Field:** ${contentType.displayField || "Not set"}`);
-    lines.push(`**Fields Count:** ${contentType.fields?.length || 0}`);
-    lines.push(
-      `**Created:** ${new Date(contentType.sys.createdAt).toLocaleDateString()}`
-    );
-    lines.push(
-      `**Last Updated:** ${new Date(
-        contentType.sys.updatedAt
-      ).toLocaleDateString()}`
-    );
-    lines.push("");
-
-    if (contentType.fields && contentType.fields.length > 0) {
-      lines.push("### Fields:");
-      lines.push(
-        "| Field ID | Name | Type | Required | Localized | Status | Validations |"
-      );
-      lines.push(
-        "|----------|------|------|----------|-----------|--------|-------------|"
-      );
-
-      contentType.fields.forEach((field) => {
-        const validations = formatValidations(field.validations, field);
-        const isRequired = field.required ? "✓" : "";
-        const isLocalized = field.localized ? "✓" : "";
-        const isDisabled = field.disabled ? "🚫" : "";
-        const isOmitted = field.omitted ? "👁️" : "";
-        const fieldType = getFieldTypeDescription(field);
-
-        // Add default value if present
-        let defaultValueStr = "";
-        if (field.defaultValue) {
-          const defaultVal =
-            typeof field.defaultValue === "object"
-              ? JSON.stringify(field.defaultValue)
-              : field.defaultValue;
-          defaultValueStr = ` (default: ${defaultVal})`;
-        }
-
-        const statusIcons = [isDisabled, isOmitted].filter(Boolean).join(" ");
-        const fieldName = `${field.name}${defaultValueStr}`;
-
-        lines.push(
-          `| ${field.id} | ${fieldName} | ${fieldType} | ${isRequired} | ${isLocalized} | ${statusIcons} | ${validations} |`
-        );
-      });
-
-      lines.push("");
-    }
-
-    lines.push("---");
-    lines.push("");
-  });
-
-  return lines.join("\n");
-}
-
 // Generate Markdown format report
 function generateMarkdownReport(contentTypes) {
   const lines = [];
@@ -472,24 +397,9 @@ function generateMarkdownReport(contentTypes) {
 
   lines.push(header);
 
-  // Generate TOC with unique anchors
-  contentTypes.forEach((contentType, index) => {
-    const anchor = `${contentType.name
-      .toLowerCase()
-      .replace(/\s+/g, "-")
-      .replace(/[^\w-]/g, "")}-${contentType.sys.id}`;
-    lines.push(`${index + 1}. [${contentType.name}](#${anchor})`);
-  });
-
-  lines.push("");
-
   // Generate detailed sections
   contentTypes.forEach((contentType) => {
-    const anchor = `${contentType.name
-      .toLowerCase()
-      .replace(/\s+/g, "-")
-      .replace(/[^\w-]/g, "")}-${contentType.sys.id}`;
-    lines.push(`## ${contentType.name} {#${anchor}}`);
+    lines.push(`## ${contentType.name}`);
     lines.push("");
     lines.push(`- **ID:** \`${contentType.sys.id}\``);
     lines.push(`- **Display Field:** ${contentType.displayField || "Not set"}`);
@@ -549,26 +459,10 @@ function generateMarkdownReport(contentTypes) {
           lines.push(`- **Default Value:** \`${defaultVal}\``);
         }
 
-        // De-duplicate inline links in validations
+        // Format validations
         let validations = formatValidations(field.validations, field);
         if (validations !== "None") {
-          // Find markdown links in validations and dedupe
-          const linkRegex = /\[([^\]]+)\]\(([^\)]+)\)/g;
-          let match;
-          let dedupedValidations = validations;
-          while ((match = linkRegex.exec(validations)) !== null) {
-            const linkKey = match[0];
-            if (seenLinks.has(linkKey)) {
-              // Remove duplicate link
-              dedupedValidations = dedupedValidations.replace(
-                linkKey,
-                match[1]
-              );
-            } else {
-              seenLinks.add(linkKey);
-            }
-          }
-          lines.push(`- **Validations:** ${dedupedValidations}`);
+          lines.push(`- **Validations:** ${validations}`);
         }
 
         // Add array item details if applicable
@@ -582,35 +476,13 @@ function generateMarkdownReport(contentTypes) {
               field.items.validations,
               field
             );
-            // Dedupe links in array item validations
-            const linkRegex = /\[([^\]]+)\]\(([^\)]+)\)/g;
-            let match;
-            let dedupedItemValidations = itemValidations;
-            while ((match = linkRegex.exec(itemValidations)) !== null) {
-              const linkKey = match[0];
-              if (seenLinks.has(linkKey)) {
-                dedupedItemValidations = dedupedItemValidations.replace(
-                  linkKey,
-                  match[1]
-                );
-              } else {
-                seenLinks.add(linkKey);
-              }
-            }
-            lines.push(
-              `- **Array Item Validations:** ${dedupedItemValidations}`
-            );
+            lines.push(`- **Array Item Validations:** ${itemValidations}`);
           }
         }
 
         lines.push("");
       });
     }
-
-    // Add a section break and page break marker for PDF generation
-    lines.push("<!-- sectionbreak -->");
-    lines.push("<!-- pagebreak -->");
-    lines.push("");
   });
 
   return lines.join("\n");
