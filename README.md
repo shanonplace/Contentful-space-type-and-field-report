@@ -45,7 +45,7 @@ The report will be saved in the directory specified by `OUTPUT_DIR` (default: `r
 To create a PDF from the Markdown report, use Pandoc:
 
 ```sh
-pandoc reports/all-types.md -o reports/all-types.pdf --pdf-engine=xelatex -V geometry:margin=1in -V mainfont="Arial" --highlight-style=tango -V colorlinks=true -V linkcolor=blue -V title="Contentful Content Types Report"
+pandoc reports/all-rh-com.md -o reports/all-rh.com.pdf --pdf-engine=xelatex -V geometry:margin=1in -V mainfont="Arial" --highlight-style=tango -V colorlinks=true -V linkcolor=blue
 ```
 
 This will generate `all-types.pdf` in the `reports` directory.
