@@ -40,6 +40,22 @@ node contentful-content-types-script.js --output=types.json
 
 The report will be saved in the directory specified by `OUTPUT_DIR` (default: `reports`).
 
+## Generate a PDF Version
+
+To create a PDF from the Markdown report, use Pandoc:
+
+```sh
+pandoc reports/all-types.md -o reports/all-types.pdf --pdf-engine=xelatex -V geometry:margin=1in -V mainfont="Arial" --highlight-style=tango -V colorlinks=true -V linkcolor=blue -V title="Contentful Content Types Report"
+```
+
+This will generate `all-types.pdf` in the `reports` directory.
+
+## Install Pandoc
+
+Pandoc is required to generate PDF reports. See the official installation guide for Mac, Windows, and Linux:
+
+- [Pandoc Installation Instructions](https://pandoc.org/installing.html)
+
 ## Environment Variables
 
 - `CONTENTFUL_SPACE_ID`: Your Contentful space ID (required)
